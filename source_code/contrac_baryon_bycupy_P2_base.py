@@ -324,7 +324,7 @@ if __name__ == '__main__':
             #反向传播的传播子
             peram_u_inv=readin_peram(peram_u_dir, conf_id, Nt, Nev1, Nev1, t_sink)#读取传播子
             peram_s_inv=readin_peram(peram_s_dir, conf_id, Nt, Nev1, Nev1, t_sink)#读取传播子
-            peram_u_source=peram_u[t_source]#读取传播子
+            peram_u_source=peram_u_inv[t_source]#读取传播子
             G5_peram_s_G5_source=contract("ba,tzyda,de->tzybe", -g5g5, cp.conj(peram_s_inv), g5g5)[t_source]#读取传播子
             #获取VDV_sink
             VDV_sink = {}
