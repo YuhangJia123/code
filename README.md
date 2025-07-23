@@ -1,7 +1,9 @@
 这是我在格点QCD中计算KN散射时候的一些思考的代码，可以较大的简化计算。现在分享出来，但是希望可以尊重知识产权
 O_group文件夹为：格点O群的S波的生成以及用对称性约化关联函数抽取contract_base的方法
 source_code文件为我常用的0，1，2动量的收缩程序（KN），并且在高动量情况下分为base简化以及nobase原始计算的版本
-package文件中为contract程序中要用到的一些包
 run_sbatch为当你在服务器中要提交任务时，配套的一些脚本
+package为在计算主程序之外的一些自己写的计算包
+    1.source_code_import为在使用source_code时主程序所使用的一些函数，例如gama矩阵的定义，读取以及写入文件的函数等，在使用的时候记得和source_code放在同一个文件夹中才可以正确的导入
+    2.VVV_caculate为一个可以在gpu中直接运行计算VVV的包，具体使用为，先在input文件中编辑好自己的输入数据，然后使用create_input批量产生input文件，然后运行caculate.sh文件即可并行批量产生所需的VVV,也可以自己调整并行的限制（如同时gpu个数使用限制，最大任务限制），由于程序使用相对地址，因此这一套流程只需要编辑input文件即可。
 
 当然在运用该程序时需要，需要在input文件中中修改为自己所用的输入数据，并且在O_group文件夹中计算出来所学的base数据。这样在contract文件中可以直接使用
