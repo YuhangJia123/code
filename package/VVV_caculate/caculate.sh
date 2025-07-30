@@ -1,23 +1,33 @@
 #!/bin/bash
+# 后台运行并保持终端断开后继续执行
+if [ ! -f .background_running ]; then
+    touch .background_running
+    # 使用完整路径运行脚本
+    SCRIPT_PATH="$(realpath "$0")"
+    nohup "$SCRIPT_PATH" "$@" > master_control.log 2>&1 &
+    echo "脚本已在后台运行，终端断开后可继续执行"
+    echo "查看日志: tail -f $(realpath master_control.log)"
+    exit 0
+fi
+rm -f .background_running
 
+
+#-------------------------------------------------------------------------------
+# 脚本名称 caculate.sh
 # 重定向所有输出到master_control.log
 exec &> "master_control.log"
 
 # 定义可配置变量（便于后续修改）
-MAX_TASKS=4                  # 最大并发任务数
+MAX_TASKS=6                  # 最大并发任务数
 MAX_TASKS_PER_GPU=2          # 每个GPU最大任务数
-AVAILABLE_GPUS="1 2 3"       # 可用GPU编号（根据实际情况修改）
+AVAILABLE_GPUS="0 1 2"       # 可用GPU编号（根据实际情况修改）
 
-# 后台运行整个脚本
-{
-    # 设置关键路径和文件名模式
+# 设置关键路径和文件名模式
 exe="./operate_VVV.py"              # 替换为实际的Python脚本路径
 input_dir="./run_created/input/"              # 输入文件目录
 output_dir="./run_created/output/"                  # 日志输出目录
 error_dir="./run_created/error/"                    # 错误日志输出目录
 FILE_PATTERN="${input_dir}/input_*"        # 匹配任务脚本的模式（示例：task_CONFIG1_PX10_PY20_PZ30.sh）
-
-
 
 # 获取所有任务脚本并按自然顺序排序
 files=($(ls $FILE_PATTERN 2>/dev/null | sort -V))
@@ -57,10 +67,10 @@ for input_file in "${files[@]}"; do
     log_file="${output_dir}/output_Px${PX}Py${PY}Pz${PZ}.conf${CONF}.log"
     error_log_file="${error_dir}/error_Px${PX}Py${PY}Pz${PZ}.conf${CONF}.log"
 
-
     # 初始化变量
     if [ -z "${gpu_tasks_initialized}" ]; then
         declare -A gpu_tasks
+        declare -A pid_gpu_map  # 新增：存储PID到GPU的映射
         total_tasks=0
         last_gpu=""
         available_gpus=$AVAILABLE_GPUS  # 指定可用GPU
@@ -69,6 +79,17 @@ for input_file in "${files[@]}"; do
 
     # 等待直到满足条件
     while true; do
+        # 检查已完成的任务并更新计数器
+        for pid in "${!pid_gpu_map[@]}"; do
+            if ! kill -0 $pid 2>/dev/null; then  # 进程已结束
+                gpu=${pid_gpu_map[$pid]}
+                gpu_tasks[$gpu]=$(( ${gpu_tasks[$gpu]} - 1 ))
+                total_tasks=$(( total_tasks - 1 ))
+                unset pid_gpu_map[$pid]
+                echo "ℹ️ 任务完成 (PID:$pid), GPU $gpu 释放"
+            fi
+        done
+
         # 检查全局任务数
         if [ $total_tasks -ge $MAX_TASKS ]; then
             sleep 10
@@ -123,13 +144,11 @@ for input_file in "${files[@]}"; do
     total_tasks=$(( total_tasks + 1 ))
     last_gpu=$free_gpu
     echo "▶️ 启动任务：$task_id (GPU $free_gpu, 当前GPU任务: ${gpu_tasks[$free_gpu]}, 总任务: $total_tasks)"
-    # 执行任务并在完成后更新计数器
-    (
-        nohup bash -c "CUDA_VISIBLE_DEVICES=$free_gpu ipython \"$exe\" \"$input_file\"" > "$log_file" 2> "$error_log_file"
-        # 任务完成后减少计数器
-        gpu_tasks[$free_gpu]=$(( ${gpu_tasks[$free_gpu]} - 1 ))
-        total_tasks=$(( total_tasks - 1 ))
-    ) &
+    # 执行任务
+    nohup bash -c "CUDA_VISIBLE_DEVICES=$free_gpu ipython \"$exe\" \"$input_file\"" > "$log_file" 2> "$error_log_file" &
+    pid=$!
+    # 存储PID和GPU的映射关系
+    pid_gpu_map[$pid]=$free_gpu
 done
 
 # 等待所有后台任务完成
@@ -151,6 +170,4 @@ for input_file in "${files[@]}"; do
     fi
 done
 
-
 echo "🎉 所有任务执行完毕！"
-} &

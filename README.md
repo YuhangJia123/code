@@ -7,3 +7,13 @@ package为在计算主程序之外的一些自己写的计算包
     2.VVV_caculate为一个可以在gpu中直接运行计算VVV的包，具体使用为，先在input文件中编辑好自己的输入数据，然后使用create_input批量产生input文件，然后运行caculate.sh文件即可并行批量产生所需的VVV,也可以自己调整并行的限制（如同时gpu个数使用限制，最大任务限制），由于程序使用相对地址，因此这一套流程只需要编辑input文件即可。
 
 当然在运用该程序时需要，需要在input文件中中修改为自己所用的输入数据，并且在O_group文件夹中计算出来所学的base数据。这样在contract文件中可以直接使用
+7.30
+新增加了数据拟合模块，fit文件为对一个数据进行lsqfit，autofit为按照卡方最小的逻辑进行自动拟合。
+gevp为格点中对关联函数矩阵作本征值分解，求出合适的能谱
+gevp_jackfit.py为一个自动的函数，用它可以自动根据数据作gevp后自动拟合，并且的到一张信息清晰的图片：
+![Alt text](data_analysis/output/00_lam_jack.png)
+想要使用数据分析流程如下：
+1.用check_corr.py对关联函数矩阵进行观察，看是否厄米
+2.用raw_corr.py将source_code中跑出来的数据进行整合，自动保存到data文件夹中
+3.使用gevp_jackfit.py将data文件中的数据自动gevp以及拟合出最佳结果，并且拟合数据全部保存在output文件中。
+4.使用data_map.py将拟合结果画出图片。
